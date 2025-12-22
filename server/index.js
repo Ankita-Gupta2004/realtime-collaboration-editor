@@ -15,10 +15,15 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // listen for text changes from THIS client
-  socket.on("text-change", (content) => {
-    // send changes to ALL other clients
-    socket.broadcast.emit("receive-change", content);
+  // Client joins a document room
+  socket.on("join-doc", (docId) => {
+    socket.join(docId);
+    console.log(`Socket ${socket.id} joined document ${docId}`);
+  });
+
+  // Text changes scoped to a document
+  socket.on("text-change", ({ docId, content }) => {
+    socket.to(docId).emit("receive-change", content);
   });
 
   socket.on("disconnect", () => {
