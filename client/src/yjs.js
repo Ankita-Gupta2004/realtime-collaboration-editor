@@ -5,17 +5,15 @@ export function setupYjs(docId) {
   const ydoc = new Y.Doc();
 
   const provider = new WebsocketProvider(
-    "ws://localhost:1234", // make sure this matches your server port
-    docId,                  // use the docId passed in
+    "ws://localhost:1234",  // Your Yjs WebSocket server
+    docId,
     ydoc
   );
 
   const ytext = ydoc.getText("shared-text");
 
-  // Optional: listen for remote updates
-  ytext.observe(event => {
-    console.log("Yjs update received:", ytext.toString());
-  });
+  // Create undo manager observing ytext
+  const undoManager = new Y.UndoManager(ytext);
 
-  return { ydoc, provider, ytext };
+  return { ydoc, provider, ytext, undoManager };
 }
