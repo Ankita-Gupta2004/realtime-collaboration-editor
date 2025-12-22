@@ -14,6 +14,16 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
+
+  // listen for text changes from THIS client
+  socket.on("text-change", (content) => {
+    // send changes to ALL other clients
+    socket.broadcast.emit("receive-change", content);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
 });
 
 server.listen(5000, () => {
