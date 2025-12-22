@@ -1,29 +1,35 @@
 import { useEffect, useState } from "react";
-import socket from "./socket";
+import { setupYjs } from "./yjs";
 
 const docId = "doc-123";
 
 function App() {
   const [text, setText] = useState("");
+  const [ytext, setYtext] = useState(null);
 
   useEffect(() => {
-    socket.emit("join-doc", docId);
+    const { ydoc, provider, ytext } = setupYjs(docId);
 
-    const handleReceiveChange = (content) => {
-      setText((prev) => (prev !== content ? content : prev));
+    setYtext(ytext);
+
+    const updateText = () => {
+      setText(ytext.toString());
     };
 
-    socket.on("receive-change", handleReceiveChange);
+    ytext.observe(updateText);
 
     return () => {
-      socket.off("receive-change", handleReceiveChange);
+      ytext.unobserve(updateText);
+      provider.destroy();
+      ydoc.destroy();
     };
   }, []);
 
   const handleChange = (e) => {
-    const value = e.target.value;
-    setText(value);
-    socket.emit("text-change", { docId, content: value });
+    if (!ytext) return;
+
+    ytext.delete(0, ytext.length);
+    ytext.insert(0, e.target.value);
   };
 
   return (
