@@ -9,6 +9,7 @@ Phases available:
 - [PHASE 3 — Documents & Rooms (Scoping Collaboration)](./PHASE-3.md)
 - [PHASE 4 — CRDT (Yjs Integration)](./PHASE-4.md)
 - [PHASE 5 — Persistence & Database](./PHASE-5.md)
+- [PHASE 6 — Version History & Time Travel](./PHASE-6.md)
 
 How to use these docs
 

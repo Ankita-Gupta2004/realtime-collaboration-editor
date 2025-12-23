@@ -236,7 +236,12 @@ Security note: validate permissions for who can restore or view snapshots.
 ## Git Commit
 
 ```bash
-git commit -am "Add persistence: Yjs snapshots and versions collection"
+git commit -m "Phase 5: Add MongoDB persistence with Yjs snapshots
+
+- Integrated MongoDB for storing collaborative document state
+- Implemented periodic Yjs snapshot saving on the server
+- Enabled document recovery after server restart
+- Verified real-time sync with persistent storage"
 git push
 ```
 
