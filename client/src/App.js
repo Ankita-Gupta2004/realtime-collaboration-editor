@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import * as Y from "yjs";
 import { setupYjs } from "./yjs";
+import { computeDiff } from "./diff";
 
 function App() {
   const [text, setText] = useState("");
@@ -13,6 +14,10 @@ function App() {
   );
   const [isEditingName, setIsEditingName] = useState(false);
   const typingTimeoutRef = useRef(null);
+  const [compareLeftId, setCompareLeftId] = useState(null);
+  const [compareRightId, setCompareRightId] = useState(null);
+  const [diffResult, setDiffResult] = useState(null);
+  const [showDiffModal, setShowDiffModal] = useState(false);
 
   const ydocRef = useRef(null);
   const ytextRef = useRef(null);
@@ -21,7 +26,6 @@ function App() {
   const textareaRef = useRef(null);
 
   const docId = "doc-123";
-  const userNameRef = useRef(userName);
 
   useEffect(() => {
     const { ydoc, provider, ytext, undoManager, awareness } = setupYjs(
@@ -228,6 +232,40 @@ function App() {
     }
   };
 
+  // Fetch the text content for a version by id
+  const fetchVersionText = async (versionId) => {
+    const res = await fetch(
+      `http://localhost:4000/history/restore/${versionId}`
+    );
+    const { snapshot } = await res.json();
+    const binaryString = atob(snapshot);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++)
+      bytes[i] = binaryString.charCodeAt(i);
+    const tempDoc = new Y.Doc();
+    Y.applyUpdate(tempDoc, bytes);
+    const text = tempDoc.getText("shared-text").toString();
+    tempDoc.destroy();
+    return text;
+  };
+
+  const compareSelectedVersions = async () => {
+    if (!compareLeftId || !compareRightId) {
+      alert("Select two versions to compare");
+      return;
+    }
+    try {
+      const leftText = await fetchVersionText(compareLeftId);
+      const rightText = await fetchVersionText(compareRightId);
+      const diff = computeDiff(leftText, rightText);
+      setDiffResult(diff);
+      setShowDiffModal(true);
+    } catch (e) {
+      console.error("Compare failed", e);
+      alert("Failed to compare versions: " + e.message);
+    }
+  };
+
   return (
     <div style={{ fontFamily: "Arial, sans-serif", padding: "16px" }}>
       <h2>Realtime Collaboration Editor</h2>
@@ -372,6 +410,40 @@ function App() {
       {versions.length > 0 && (
         <div style={{ marginTop: "24px" }}>
           <h3>Version History ({versions.length} versions)</h3>
+          <div
+            style={{
+              marginBottom: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <button
+              onClick={compareSelectedVersions}
+              style={{ fontWeight: "bold" }}
+            >
+              Compare Selected
+            </button>
+            <span style={{ color: "#666", fontSize: "13px" }}>
+              Select two versions as A / B
+            </span>
+            {compareLeftId && (
+              <strong style={{ marginLeft: "12px" }}>
+                A:{" "}
+                {new Date(
+                  versions.find((v) => v._id === compareLeftId)?.createdAt
+                ).toLocaleString()}
+              </strong>
+            )}
+            {compareRightId && (
+              <strong style={{ marginLeft: "8px" }}>
+                B:{" "}
+                {new Date(
+                  versions.find((v) => v._id === compareRightId)?.createdAt
+                ).toLocaleString()}
+              </strong>
+            )}
+          </div>
           <ul style={{ listStyle: "none", padding: 0 }}>
             {versions.map((v) => (
               <li
@@ -411,6 +483,26 @@ function App() {
                     View preview
                   </button>
                   <button onClick={() => restoreVersion(v._id)}>Restore</button>
+                  <button
+                    onClick={() => setCompareLeftId(v._id)}
+                    style={{
+                      marginLeft: "8px",
+                      backgroundColor:
+                        compareLeftId === v._id ? "#c8e6c9" : undefined,
+                    }}
+                  >
+                    A
+                  </button>
+                  <button
+                    onClick={() => setCompareRightId(v._id)}
+                    style={{
+                      marginLeft: "4px",
+                      backgroundColor:
+                        compareRightId === v._id ? "#ffcdd2" : undefined,
+                    }}
+                  >
+                    B
+                  </button>
                 </div>
               </li>
             ))}
@@ -468,6 +560,82 @@ function App() {
                 Restore this version
               </button>
               <button onClick={() => setPreviewVersion(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Diff Modal */}
+      {showDiffModal && diffResult && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "20px",
+              borderRadius: "8px",
+              maxWidth: "800px",
+              maxHeight: "80vh",
+              overflow: "auto",
+              width: "95%",
+            }}
+          >
+            <h3>Version Diff</h3>
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                fontFamily: "monospace",
+                fontSize: 14,
+              }}
+            >
+              {diffResult.map((seg, idx) => {
+                if (seg.type === "equal")
+                  return <span key={idx}>{seg.text}</span>;
+                if (seg.type === "added")
+                  return (
+                    <span
+                      key={idx}
+                      style={{ backgroundColor: "#d0f8d0", color: "#0a6d0a" }}
+                    >
+                      {seg.text}
+                    </span>
+                  );
+                if (seg.type === "removed")
+                  return (
+                    <span
+                      key={idx}
+                      style={{
+                        backgroundColor: "#ffe6e6",
+                        color: "#990000",
+                        textDecoration: "line-through",
+                      }}
+                    >
+                      {seg.text}
+                    </span>
+                  );
+                return <span key={idx}>{seg.text}</span>;
+              })}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <button
+                onClick={() => setShowDiffModal(false)}
+                style={{ marginRight: 8 }}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
