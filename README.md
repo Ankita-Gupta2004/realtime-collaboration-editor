@@ -69,7 +69,7 @@ npm install
 Create `server/.env`:
 
 ```env
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/collab-editor
+MONGO_URI=mongodb...
 PORT=4000
 HISTORY_SERVER_PORT=4000
 ```
