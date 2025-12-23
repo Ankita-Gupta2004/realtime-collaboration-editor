@@ -1,4 +1,4 @@
-require('dotenv').config();
+require("dotenv").config();
 const { MongoClient } = require("mongodb");
 const Y = require("yjs");
 
@@ -6,38 +6,42 @@ const uri = process.env.MONGO_URI;
 const dbName = "collab-editor";
 const client = new MongoClient(uri);
 
-// Connect once at startup
 async function connectDB() {
-  if (!client.isConnected?.()) {
+  if (!client.topology?.isConnected()) {
     await client.connect();
     console.log("MongoDB connected");
   }
 }
 
+// Phase 5 – Snapshot
 async function saveSnapshot(docId, ydoc) {
   await connectDB();
   const db = client.db(dbName);
-  const collection = db.collection("documents");
 
-  const snapshot = Y.encodeStateAsUpdate(ydoc);
-  await collection.updateOne(
+  await db.collection("documents").updateOne(
     { docId },
-    { $set: { snapshot, updatedAt: new Date() } },
+    {
+      $set: {
+        snapshot: Y.encodeStateAsUpdate(ydoc),
+        updatedAt: new Date(),
+      },
+    },
     { upsert: true }
   );
 }
 
-async function loadSnapshot(docId) {
+// Phase 6 – Version history
+async function saveVersion(docId, ydoc) {
   await connectDB();
   const db = client.db(dbName);
-  const collection = db.collection("documents");
 
-  const doc = await collection.findOne({ docId });
-  if (!doc || !doc.snapshot) return null;
+  await db.collection("versions").insertOne({
+    docId,
+    snapshot: Y.encodeStateAsUpdate(ydoc),
+    createdAt: new Date(),
+  });
 
-  const ydoc = new Y.Doc();
-  Y.applyUpdate(ydoc, doc.snapshot);
-  return ydoc;
+  console.log("Version saved for", docId);
 }
 
-module.exports = { saveSnapshot, loadSnapshot };
+module.exports = { saveSnapshot, saveVersion };

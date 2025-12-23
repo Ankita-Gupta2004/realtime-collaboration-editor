@@ -8,7 +8,8 @@ async function run() {
   ytext.insert(0, "Hello MongoDB!");
 
   await saveSnapshot("doc-123", ydoc);
-  console.log("Snapshot saved!");
+  await require("./persistence").saveVersion("doc-123", ydoc);
+  console.log("Snapshot and version saved!");
   process.exit();
 }
 
