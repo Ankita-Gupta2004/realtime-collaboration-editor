@@ -7,29 +7,94 @@ function App() {
   const [versions, setVersions] = useState([]);
   const [previewVersion, setPreviewVersion] = useState(null);
   const [previewText, setPreviewText] = useState("");
+  const [remoteUsers, setRemoteUsers] = useState([]);
+  const [userName, setUserName] = useState(
+    "User-" + Math.floor(Math.random() * 10000)
+  );
+  const [isEditingName, setIsEditingName] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
   const ydocRef = useRef(null);
   const ytextRef = useRef(null);
   const undoManagerRef = useRef(null);
+  const awarenessRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const docId = "doc-123";
+  const userNameRef = useRef(userName);
 
   useEffect(() => {
-    const { ydoc, provider, ytext, undoManager } = setupYjs(docId);
-
+    const { ydoc, provider, ytext, undoManager, awareness } = setupYjs(
+      docId,
+      userName
+    );
     ydocRef.current = ydoc;
     ytextRef.current = ytext;
     undoManagerRef.current = undoManager;
+    awarenessRef.current = awareness;
 
     ytext.observe(() => {
       setText(ytext.toString());
     });
 
+    // Listen to awareness changes (other users' presence)
+    const handleAwarenessChange = (changes, origin) => {
+      try {
+        const states = awareness.getStates();
+        const users = Array.from(states.entries())
+          .filter(
+            ([clientId, state]) =>
+              state?.user && clientId !== awareness.clientID
+          )
+          .map(([clientId, state]) => ({
+            clientId,
+            ...state.user,
+            typing: state.typing,
+            cursor: state.cursor,
+          }));
+        setRemoteUsers(users);
+      } catch (e) {
+        console.error("Error processing awareness change:", e);
+      }
+    };
+
+    // y-websocket awareness uses event emitter pattern
+    if (awareness && typeof awareness.on === "function") {
+      awareness.on("change", handleAwarenessChange);
+    } else if (awareness && typeof awareness.observe === "function") {
+      awareness.observe(handleAwarenessChange);
+    }
+
     return () => {
+      if (awareness && typeof awareness.off === "function") {
+        awareness.off("change", handleAwarenessChange);
+      }
       provider.disconnect();
       ydoc.destroy();
     };
-  }, []);
+  }, [userName]);
+
+  // Update awareness when name changes
+  useEffect(() => {
+    const awareness = awarenessRef.current;
+    if (awareness) {
+      const currentState = awareness.getLocalState();
+      awareness.setLocalState({
+        ...currentState,
+        user: {
+          name: userName,
+          color: currentState?.user?.color || "#e53935",
+        },
+      });
+    }
+  }, [userName]);
+
+  const handleNameChange = (newName) => {
+    if (newName.trim().length > 0) {
+      setUserName(newName.trim());
+      setIsEditingName(false);
+    }
+  };
 
   const handleChange = (e) => {
     const value = e.target.value;
@@ -42,6 +107,41 @@ function App() {
       ytext.delete(0, ytext.length);
       ytext.insert(0, value);
     });
+
+    // Update typing indicator
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    const awareness = awarenessRef.current;
+    if (awareness) {
+      awareness.setLocalState({
+        ...awareness.getLocalState(),
+        typing: true,
+        lastUpdate: Date.now(),
+      });
+    }
+
+    // Stop typing after 1 second of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      if (awareness) {
+        awareness.setLocalState({
+          ...awareness.getLocalState(),
+          typing: false,
+          lastUpdate: Date.now(),
+        });
+      }
+    }, 1000);
+
+    // Track cursor position
+    const textarea = textareaRef.current;
+    if (textarea && awareness) {
+      awareness.setLocalState({
+        ...awareness.getLocalState(),
+        cursor: {
+          pos: textarea.selectionStart,
+          line: value.slice(0, textarea.selectionStart).split("\n").length - 1,
+        },
+      });
+    }
   };
 
   const handleUndo = () => {
@@ -132,7 +232,114 @@ function App() {
     <div style={{ fontFamily: "Arial, sans-serif", padding: "16px" }}>
       <h2>Realtime Collaboration Editor</h2>
 
+      {/* User Name Section */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginBottom: "16px",
+          padding: "12px",
+          backgroundColor: "#f9f9f9",
+          borderRadius: "4px",
+          border: "1px solid #e0e0e0",
+        }}
+      >
+        <span
+          style={{ marginRight: "12px", fontWeight: "bold", color: "#666" }}
+        >
+          Your Name:
+        </span>
+        {isEditingName ? (
+          <input
+            type="text"
+            defaultValue={userName}
+            placeholder="Enter your name"
+            onBlur={(e) => handleNameChange(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                handleNameChange(e.target.value);
+              }
+            }}
+            autoFocus
+            style={{
+              padding: "6px 12px",
+              fontSize: "14px",
+              border: "1px solid #3f51b5",
+              borderRadius: "4px",
+              flex: 1,
+              maxWidth: "250px",
+            }}
+          />
+        ) : (
+          <>
+            <span
+              style={{
+                padding: "6px 12px",
+                backgroundColor: "#3f51b5",
+                color: "white",
+                borderRadius: "4px",
+                fontWeight: "bold",
+                marginRight: "8px",
+              }}
+            >
+              {userName}
+            </span>
+            <button
+              onClick={() => setIsEditingName(true)}
+              style={{
+                padding: "6px 12px",
+                backgroundColor: "#f50057",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: "bold",
+              }}
+            >
+              ✎ Edit
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Active Users Indicator */}
+      {remoteUsers.length > 0 && (
+        <div
+          style={{
+            backgroundColor: "#f0f7ff",
+            padding: "12px",
+            borderRadius: "4px",
+            marginBottom: "12px",
+            border: "1px solid #b3d9ff",
+          }}
+        >
+          <strong>Active Users:</strong>
+          <div style={{ marginTop: "8px" }}>
+            {remoteUsers.map((user) => (
+              <div
+                key={user.clientId}
+                style={{
+                  display: "inline-block",
+                  marginRight: "16px",
+                  padding: "4px 8px",
+                  backgroundColor: user.color,
+                  color: "white",
+                  borderRadius: "4px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+              >
+                {user.name}
+                {user.typing && <span> ✍️ typing...</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <textarea
+        ref={textareaRef}
         value={text}
         onChange={handleChange}
         placeholder="Start typing..."
