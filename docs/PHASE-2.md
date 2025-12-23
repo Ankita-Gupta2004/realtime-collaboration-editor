@@ -120,7 +120,7 @@ socket.on("text-change", (content) => {
 
 ---
 
-## 🔍 How Real-Time Sync Works (Step-by-Step)
+## How Real-Time Sync Works (Step-by-Step)
 
 1. User types inside `<textarea>` → `handleChange()` fires.
 2. Local UI is updated with `setText(value)`.
@@ -132,7 +132,7 @@ This is a classic Pub/Sub pattern with the server acting as the broker.
 
 ---
 
-## 🧪 How to Run & Test
+## How to Run & Test
 
 Start server:
 
@@ -157,7 +157,7 @@ Test scenario:
 
 ---
 
-## ✅ Results of Phase 2
+## Results of Phase 2
 
 - React frontend created
 - WebSocket client integrated
@@ -168,7 +168,7 @@ This confirms the end-to-end real-time flow and prepares the codebase for confli
 
 ---
 
-## 🧠 HLD LESSON #3 — Pub-Sub Architecture
+## HLD LESSON #3 — Pub-Sub Architecture
 
 This system implements a Publish–Subscribe model:
 
@@ -182,7 +182,7 @@ Suggested phrasing for interviews: “Phase 2 implements a Pub-Sub model where t
 
 ---
 
-## 🎯 Outcome & Next Steps
+## Outcome & Next Steps
 
 Phase 2 unlocks:
 
