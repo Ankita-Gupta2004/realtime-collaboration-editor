@@ -10,6 +10,7 @@ Phases available:
 - [PHASE 4 — CRDT (Yjs Integration)](./PHASE-4.md)
 - [PHASE 5 — Persistence & Database](./PHASE-5.md)
 - [PHASE 6 — Version History & Time Travel](./PHASE-6.md)
+- [PHASE 7 — Presence (Cursor & User Name)](./PHASE-7.md)
 
 How to use these docs
 
