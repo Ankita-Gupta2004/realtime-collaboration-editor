@@ -126,10 +126,3 @@ Phase 2 should focus on document state synchronization and persistence:
 ## Notes for reviewers
 
 - This phase intentionally kept scope small and testable. It is a springboard for the more complex, correctness-focused phases (CRDT + persistence).
-- If you want this written as a short README or as a developer diary with timestamps and commit links, tell me which format and I'll produce it.
-
----
-
-## Contact / Author
-
-This document was authored as part of the realtime-collaboration-editor project. For questions, request the Phase 2 plan and I will expand the documentation accordingly.
